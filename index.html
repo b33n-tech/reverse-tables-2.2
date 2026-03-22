@@ -201,6 +201,25 @@ th:hover .lk-edit-icon{opacity:1;}
 /* TOAST */
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--surface3);border:1px solid var(--border2);padding:10px 20px;border-radius:20px;font-size:12px;color:var(--text);z-index:9000;animation:tIn .2s ease;pointer-events:none;}
 @keyframes tIn{from{opacity:0;transform:translateX(-50%) translateY(8px);}}
+/* AUTO-MATCH */
+.am-schema{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;}
+.am-side{flex:1;}
+.am-side-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px;font-weight:500;}
+.am-sel{width:100%;padding:7px 10px;border-radius:var(--r2);background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none;}
+.am-arrow{font-size:22px;color:var(--accent);padding-top:38px;flex-shrink:0;}
+.am-options{display:flex;flex-direction:column;gap:8px;padding:12px;background:var(--bg);border-radius:var(--r2);border:1px solid var(--border);margin-bottom:12px;}
+.am-preview{background:var(--bg);border:1px solid var(--border);border-radius:var(--r2);padding:12px;font-size:12px;max-height:160px;overflow-y:auto;}
+.am-preview-row{display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid var(--border);}
+.am-preview-row:last-child{border-bottom:none;}
+.am-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.am-dot.hit{background:var(--accent);}
+.am-dot.miss{background:var(--danger);}
+.am-val{flex:1;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.am-match{color:var(--accent);font-size:11px;}
+.am-nomatch{color:var(--danger);font-size:11px;}
+.am-stats{font-size:11px;color:var(--text3);margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
+.am-stats strong{color:var(--accent);}
+.am-stats .miss-count{color:var(--danger);}
 ::-webkit-scrollbar{width:6px;height:6px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
@@ -337,6 +356,45 @@ th:hover .lk-edit-icon{opacity:1;}
     <div class="modal-actions">
       <button class="btn" onclick="closeM('addPropModal')">Annuler</button>
       <button class="btn primary" onclick="doAddProp()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- AUTO-MATCH -->
+<div class="addprop-modal" id="amModal">
+  <div class="modal" style="width:500px">
+    <h2>⚡ Auto-match</h2>
+    <p>Remplis automatiquement une colonne FK en cherchant les correspondances exactes entre deux colonnes de texte. Équivalent du RECHERCHEV d'Excel.</p>
+    <div class="am-schema">
+      <div class="am-side">
+        <div class="am-side-label">TABLE SOURCE <span id="amSrcName" style="color:var(--text)"></span></div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:6px">Colonne FK à remplir :</div>
+        <select id="amFKCol" class="am-sel" onchange="refreshAmSourceCol()"></select>
+        <div style="font-size:10px;color:var(--text3);margin:10px 0 6px">Valeur de recherche dans cette table :</div>
+        <select id="amSrcCol" class="am-sel"></select>
+      </div>
+      <div class="am-arrow">⇢</div>
+      <div class="am-side">
+        <div class="am-side-label">TABLE CIBLE <span id="amTgtName" style="color:var(--text)"></span></div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:6px">Colonne de référence :</div>
+        <select id="amTgtCol" class="am-sel"></select>
+      </div>
+    </div>
+    <div class="am-options">
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);cursor:pointer">
+        <input type="checkbox" id="amCaseInsensitive" style="accent-color:var(--accent)">
+        Ignorer la casse (A = a)
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);cursor:pointer">
+        <input type="checkbox" id="amTrimSpaces" checked style="accent-color:var(--accent)">
+        Ignorer les espaces en début/fin
+      </label>
+    </div>
+    <div id="amPreview" class="am-preview" style="display:none"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeM('amModal')">Annuler</button>
+      <button class="btn" onclick="previewAutoMatch()">Aperçu</button>
+      <button class="btn primary" onclick="doAutoMatch()">⚡ Appliquer</button>
     </div>
   </div>
 </div>
@@ -695,11 +753,13 @@ function renderDT(id){
     return `<span class="th-link-edit" onclick="openLM('${id}','${p.id}')" title="Modifier la liaison">${label}<span class="lk-edit-icon">✎</span></span>`;
   };
   const tname=p=>p.link?(entities.find(t=>t.id===p.link.entityId)?.name||''):'';
+  const hasFKProps=e.props.some(p=>p.link?.linkType==='ref');
   main.innerHTML=`
   <div class="data-toolbar">
     <div><div class="data-title">${X(e.name)}</div><div class="data-subtitle">${e.props.length} colonnes</div></div>
     <div class="spacer"></div>
     <div class="row-count-tag">${e.count} lignes</div>
+    ${hasFKProps?`<button class="btn" style="color:var(--accent);border-color:rgba(200,240,96,.3)" onclick="openAM('${id}')">⚡ Auto-match</button>`:''}
     <button class="btn" onclick="openAP('${id}')">+ colonne</button>
     <button class="btn" onclick="addRow('${id}')">+ ligne</button>
     <button class="btn danger-btn" onclick="confirmDel('${id}')">Supprimer table</button>
@@ -753,6 +813,114 @@ function delColFromData(id,pi){
   renderCard(id);renderDT(id);renderDS();snap();
   toast(`Colonne «\u00a0${pname}\u00a0» supprimée`);
 }
+// ═══════════════════════════════════════
+// AUTO-MATCH (RECHERCHEV)
+// ═══════════════════════════════════════
+let amCtx=null; // {entityId}
+
+function openAM(entityId){
+  const e=entities.find(e=>e.id===entityId);if(!e) return;
+  const fkProps=e.props.filter(p=>p.link?.linkType==='ref');
+  if(!fkProps.length){toast('Aucune colonne FK dans cette table');return;}
+  amCtx={entityId};
+
+  // FK col selector (only FK props)
+  document.getElementById('amFKCol').innerHTML=fkProps.map(p=>`<option value="${p.id}">${X(p.name)} → ${X(entities.find(t=>t.id===p.link.entityId)?.name||'?')}</option>`).join('');
+  document.getElementById('amSrcName').textContent=e.name;
+  document.getElementById('amPreview').style.display='none';
+  refreshAmSourceCol();
+  document.getElementById('amModal').classList.add('open');
+}
+
+function refreshAmSourceCol(){
+  const e=entities.find(e=>e.id===amCtx?.entityId);if(!e) return;
+  const fkPropId=document.getElementById('amFKCol').value;
+  const fkProp=e.props.find(p=>p.id===fkPropId);
+  const target=fkProp?entities.find(t=>t.id===fkProp.link.entityId):null;
+
+  // Source col: all non-FK, non-lookup, non-rollup props in source entity
+  const srcCols=e.props.filter(p=>!p.link);
+  document.getElementById('amSrcCol').innerHTML=srcCols.map(p=>`<option value="${p.id}">${X(p.name)}</option>`).join('');
+
+  // Target col: all props in target entity
+  document.getElementById('amTgtName').textContent=target?.name||'';
+  document.getElementById('amTgtCol').innerHTML=target
+    ? target.props.map(p=>`<option value="${p.id}">${X(p.name)}</option>`).join('')
+    : '<option>— choisir une FK d\'abord —</option>';
+
+  document.getElementById('amPreview').style.display='none';
+}
+
+function runMatch(preview=false){
+  const e=entities.find(e=>e.id===amCtx?.entityId);if(!e) return null;
+  const fkPropId=document.getElementById('amFKCol').value;
+  const srcColId=document.getElementById('amSrcCol').value;
+  const tgtColId=document.getElementById('amTgtCol').value;
+  const caseIns=document.getElementById('amCaseInsensitive').checked;
+  const trim=document.getElementById('amTrimSpaces').checked;
+
+  const fkProp=e.props.find(p=>p.id===fkPropId);if(!fkProp) return null;
+  const target=entities.find(t=>t.id===fkProp.link.entityId);if(!target) return null;
+  const srcColIdx=e.props.findIndex(p=>p.id===srcColId);
+  const tgtColIdx=target.props.findIndex(p=>p.id===tgtColId);
+  const fkColIdx=e.props.findIndex(p=>p.id===fkPropId);
+  if(srcColIdx===-1||tgtColIdx===-1||fkColIdx===-1) return null;
+
+  const norm=v=>{let s=String(v||'');if(trim)s=s.trim();if(caseIns)s=s.toLowerCase();return s;};
+
+  // Build lookup index from target: normValue → row index
+  const idx=new Map();
+  target.rows.forEach((r,i)=>{ const k=norm(r[tgtColIdx]); if(k&&!idx.has(k)) idx.set(k,i); });
+
+  const results=e.rows.map((r,ri)=>{
+    const key=norm(r[srcColIdx]);
+    const match=key?idx.get(key):undefined;
+    return {ri, srcVal:r[srcColIdx]||'', matched:match!==undefined, matchIdx:match, currentFK:r[fkColIdx]};
+  });
+  return {results,fkColIdx,e,target,srcColIdx,tgtColIdx};
+}
+
+function previewAutoMatch(){
+  const res=runMatch(true);if(!res) return;
+  const {results,target}=res;
+  const hits=results.filter(r=>r.matched).length;
+  const misses=results.filter(r=>!r.matched&&r.srcVal).length;
+  const empty=results.filter(r=>!r.srcVal).length;
+
+  const rows=results.slice(0,40).map(r=>{
+    if(!r.srcVal) return `<div class="am-preview-row"><div class="am-dot" style="background:var(--text3)"></div><div class="am-val" style="color:var(--text3)">— vide —</div><div class="am-nomatch">ignoré</div></div>`;
+    const tgtLabel=r.matched?(target.rows[r.matchIdx]?.[0]||`#${r.matchIdx+1}`):'';
+    return `<div class="am-preview-row">
+      <div class="am-dot ${r.matched?'hit':'miss'}"></div>
+      <div class="am-val">${X(r.srcVal)}</div>
+      ${r.matched?`<div class="am-match">→ ${X(tgtLabel)}</div>`:`<div class="am-nomatch">aucune correspondance</div>`}
+    </div>`;
+  }).join('');
+
+  const moreMsg=results.length>40?`<div style="font-size:11px;color:var(--text3);padding-top:6px">… et ${results.length-40} lignes supplémentaires</div>`:'';
+  const el=document.getElementById('amPreview');
+  el.style.display='block';
+  el.innerHTML=rows+moreMsg+`<div class="am-stats"><strong>${hits} correspondance${hits>1?'s':''} trouvée${hits>1?'s':''}</strong>${misses?` · <span class="miss-count">${misses} sans correspondance</span>`:''}${empty?` · ${empty} vide${empty>1?'s':''} ignoré${empty>1?'s':''}`:''}.</div>`;
+}
+
+function doAutoMatch(){
+  const res=runMatch();if(!res) return;
+  const {results,fkColIdx,e}=res;
+  snap();
+  let count=0;
+  results.forEach(r=>{
+    if(r.matched){
+      e.rows[r.ri][fkColIdx]=String(r.matchIdx);
+      count++;
+    }
+  });
+  closeM('amModal');
+  renderDT(e.id);renderDS();renderCard(e.id);
+  snap();
+  const missed=results.filter(r=>r.srcVal&&!r.matched).length;
+  toast(`⚡ ${count} ligne${count>1?'s':''} matchée${count>1?'s':''}${missed?` · ${missed} sans correspondance`:''}`);
+}
+
 function confirmDel(id){
   const e=entities.find(e=>e.id===id);if(!e) return;
   if(!confirm(`Supprimer «\u00a0${e.name}\u00a0» et toutes ses données ?`)) return;
@@ -879,7 +1047,7 @@ function X(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replac
 // DEMO
 // ═══════════════════════════════════════
 function demo(){
-  const p1a=uid(),p1b=uid(),p1c=uid(),p2a=uid(),p2b=uid(),p2c=uid(),p2d=uid(),p3a=uid(),p3b=uid(),p3c=uid(),p3d=uid();
+  const p1a=uid(),p1b=uid(),p1c=uid(),p2a=uid(),p2b=uid(),p2c=uid(),p2d=uid(),p2e=uid(),p3a=uid(),p3b=uid(),p3c=uid(),p3d=uid();
   const e1=uid(),e2=uid(),e3=uid();
   entities=[
     {id:e1,name:'Clients',color:'#c8f060',count:4,
@@ -887,17 +1055,29 @@ function demo(){
              {id:p1c,name:'Nb commandes',type:'number',link:{entityId:e2,propId:p2a,linkType:'rollup',rollupViaFKPropId:p2b,rollupFieldPropId:p2a,rollupOp:'COUNT'}}],
       rows:[['Alice','alice@mail.com'],['Bob','bob@mail.com'],['Clara','clara@mail.com'],['David','david@mail.com']]},
     {id:e2,name:'Commandes',color:'#7dc8ff',count:6,
-      props:[{id:p2a,name:'Référence',type:'text'},{id:p2b,name:'Client',type:'text',link:{entityId:e1,propId:p1a,linkType:'ref'}},
-             {id:p2c,name:'Nom client',type:'text',link:{entityId:e1,propId:p1a,linkType:'lookup',lookupDisplayPropId:p1a,viaFKPropId:p2b}},
-             {id:p2d,name:'Montant',type:'number'}],
-      rows:[['CMD-001','0','','250'],['CMD-002','1','','180'],['CMD-003','0','','420'],['CMD-004','2','','90'],['CMD-005','1','','310'],['CMD-006','0','','150']]},
+      props:[
+        {id:p2a,name:'Référence',type:'text'},
+        {id:p2b,name:'Client',type:'text',link:{entityId:e1,propId:p1a,linkType:'ref'}},
+        {id:p2c,name:'Nom client',type:'text',link:{entityId:e1,propId:p1a,linkType:'lookup',lookupDisplayPropId:p1a,viaFKPropId:p2b}},
+        {id:p2d,name:'Montant',type:'number'},
+        {id:p2e,name:'Nom (brut)',type:'text'},
+      ],
+      // Col 4 (Nom brut) has raw text names — perfect for auto-match demo
+      rows:[
+        ['CMD-001','0','','250','Alice'],
+        ['CMD-002','1','','180','Bob'],
+        ['CMD-003','0','','420','Alice'],
+        ['CMD-004','2','','90','Clara'],
+        ['CMD-005','1','','310','Bob'],
+        ['CMD-006','3','','150','David'],
+      ]},
     {id:e3,name:'Produits',color:'#f0a060',count:3,
       props:[{id:p3a,name:'Nom',type:'text'},{id:p3b,name:'Prix',type:'number'},{id:p3c,name:'Catégorie',type:'select'},{id:p3d,name:'Stock',type:'number'}],
       rows:[['Chaise design','149','mobilier','23'],['Lampe arc','89','luminaire','41'],['Tapis berbère','320','textile','8']]}
   ];
-  cardPos[e1]={x:40,y:60};cardPos[e2]={x:360,y:60};cardPos[e3]={x:680,y:60};
+  cardPos[e1]={x:40,y:60};cardPos[e2]={x:360,y:60};cardPos[e3]={x:700,y:60};
   renderAll(); snap();
-  toast('Démo chargée — Clients → Commandes (FK + Lookup + Rollup)');
+  toast('Démo chargée — essaie ⚡ Auto-match sur Commandes → Clients !');
 }
 init(); demo();
 </script>
