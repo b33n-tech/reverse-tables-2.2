@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EntityForge</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0e0f11; --surface:#161719; --surface2:#1e2024; --surface3:#26292f;
+  --border:#2e3138; --border2:#3a3f4a;
+  --text:#e8eaf0; --text2:#8b90a0; --text3:#555b6a;
+  --accent:#c8f060; --accent2:#7dc8ff; --accent3:#f0a060; --accent4:#d060f0; --danger:#f06060;
+  --r:8px; --r2:4px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+header{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;gap:12px;}
+.logo{font-family:'Fraunces',serif;font-size:20px;color:var(--accent);letter-spacing:-.5px;white-space:nowrap;}
+.logo span{color:var(--text2);font-weight:300;font-style:italic;}
+.tabs{display:flex;gap:2px;background:var(--bg);border-radius:var(--r);padding:3px;flex-shrink:0;}
+.tab{padding:6px 16px;border-radius:6px;font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;transition:all .15s;color:var(--text2);background:transparent;border:none;}
+.tab.active{background:var(--surface3);color:var(--text);}
+.tab:hover:not(.active){color:var(--text);}
+.header-actions{display:flex;gap:6px;align-items:center;flex-shrink:0;}
+.btn{padding:7px 14px;border-radius:var(--r2);font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);transition:all .15s;white-space:nowrap;}
+.btn:hover{background:var(--surface3);color:var(--text);}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+.btn.primary{background:var(--accent);color:#0e0f11;border-color:var(--accent);font-weight:500;}
+.btn.primary:hover{background:#d9ff70;}
+.btn.danger-btn{border-color:rgba(240,96,96,.3);color:var(--danger);}
+.btn.danger-btn:hover{background:rgba(240,96,96,.1);}
+main{flex:1;overflow:hidden;display:flex;position:relative;}
+/* MODEL */
+#space-model{width:100%;height:100%;display:flex;position:relative;}
+.model-canvas{flex:1;position:relative;overflow:hidden;cursor:default;}
+canvas.grid-bg{position:absolute;inset:0;pointer-events:none;}
+.canvas-inner{position:absolute;top:0;left:0;transform-origin:0 0;}
+#connections-svg{position:absolute;top:0;left:0;pointer-events:none;z-index:0;overflow:visible;}
+.zoom-controls{position:absolute;bottom:16px;left:16px;display:flex;flex-direction:column;gap:4px;z-index:50;}
+.zoom-btn{width:32px;height:32px;border-radius:var(--r2);border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .1s;}
+.zoom-btn:hover{background:var(--surface3);color:var(--text);}
+.zoom-label{font-size:10px;color:var(--text3);text-align:center;padding:2px 0;}
+/* CARDS */
+.entity-card{position:absolute;width:264px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.4);cursor:default;user-select:none;z-index:10;}
+.entity-card.selected{border-color:var(--accent2);box-shadow:0 0 0 2px rgba(125,200,255,.18);}
+.card-header{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:grab;border-bottom:1px solid var(--border);background:var(--surface2);}
+.card-header:active{cursor:grabbing;}
+.entity-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.card-title{flex:1;font-size:13px;font-weight:500;color:var(--text);background:transparent;border:none;outline:none;font-family:'DM Mono',monospace;}
+.card-count-badge{font-size:10px;color:var(--text3);padding:2px 6px;background:var(--surface3);border-radius:3px;cursor:pointer;}
+.card-count-badge:hover{color:var(--text2);}
+.card-del{font-size:12px;color:var(--text3);cursor:pointer;padding:2px;}
+.card-del:hover{color:var(--danger);}
+.card-props{padding:8px 0;min-height:28px;}
+.prop-row{display:flex;align-items:center;gap:5px;padding:4px 12px;transition:background .1s;}
+.prop-row:hover{background:var(--surface2);}
+.prop-name{flex:1;font-size:11px;color:var(--text2);background:transparent;border:none;outline:none;font-family:'DM Mono',monospace;}
+.prop-name:focus{color:var(--text);}
+.prop-type{font-size:10px;color:var(--text3);background:var(--surface3);border:none;outline:none;border-radius:3px;padding:2px 4px;font-family:'DM Mono',monospace;cursor:pointer;}
+.prop-link-btn{font-size:11px;color:var(--text3);cursor:pointer;padding:2px 4px;border-radius:3px;transition:all .1s;}
+.prop-link-btn:hover{color:var(--accent2);background:rgba(125,200,255,.1);}
+.prop-link-btn.linked{color:var(--accent3);}
+.prop-del{font-size:11px;color:var(--text3);cursor:pointer;opacity:0;}
+.prop-row:hover .prop-del{opacity:1;}
+.prop-del:hover{color:var(--danger);}
+.prop-link-tag{font-size:9px;padding:1px 4px;border-radius:2px;background:rgba(240,160,96,.15);color:var(--accent3);}
+.card-footer{padding:6px 12px 8px;border-top:1px solid var(--border);}
+.add-prop-btn{font-size:11px;color:var(--text3);cursor:pointer;display:flex;align-items:center;gap:4px;transition:color .1s;}
+.add-prop-btn:hover{color:var(--accent);}
+/* PANEL */
+.model-panel{width:268px;border-left:1px solid var(--border);background:var(--surface);flex-shrink:0;display:flex;flex-direction:column;overflow:hidden;}
+.panel-section{padding:14px 16px;border-bottom:1px solid var(--border);}
+.panel-label{font-size:10px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;}
+.add-entity-area{display:flex;flex-direction:column;gap:8px;}
+.input{width:100%;padding:8px 10px;border-radius:var(--r2);background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none;transition:border-color .15s;}
+.input:focus{border-color:var(--accent2);}
+.input::placeholder{color:var(--text3);}
+.color-row{display:flex;gap:6px;flex-wrap:wrap;}
+.color-dot{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .1s;}
+.color-dot:hover{transform:scale(1.2);}
+.color-dot.selected{border-color:var(--text);}
+.count-row{display:flex;gap:8px;align-items:center;}
+.count-row label{font-size:11px;color:var(--text2);}
+.count-input{width:70px;}
+.entity-list{flex:1;overflow-y:auto;padding:8px 0;}
+.entity-list-item{display:flex;align-items:center;gap:8px;padding:8px 16px;cursor:pointer;transition:background .1s;}
+.entity-list-item:hover{background:var(--surface2);}
+.eli-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.eli-name{font-size:12px;color:var(--text2);flex:1;}
+.eli-count{font-size:10px;color:var(--text3);}
+/* DATA */
+#space-data{width:100%;height:100%;display:none;flex-direction:row;}
+.data-sidebar{width:214px;border-right:1px solid var(--border);background:var(--surface);flex-shrink:0;display:flex;flex-direction:column;}
+.data-sidebar-header{padding:12px 16px;border-bottom:1px solid var(--border);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;}
+.data-entity-list{flex:1;overflow-y:auto;}
+.data-entity-item{display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;transition:background .1s;border-bottom:1px solid var(--border);}
+.data-entity-item:hover{background:var(--surface2);}
+.data-entity-item.active{background:var(--surface3);}
+.dei-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.dei-info{flex:1;min-width:0;}
+.dei-name{font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dei-sub{font-size:10px;color:var(--text3);margin-top:2px;}
+.dei-filled{font-size:10px;color:var(--accent);font-weight:500;}
+.data-main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.data-toolbar{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0;background:var(--surface);flex-wrap:wrap;}
+.data-title{font-size:14px;color:var(--text);font-family:'Fraunces',serif;}
+.data-subtitle{font-size:11px;color:var(--text3);}
+.spacer{flex:1;}
+.row-count-tag{font-size:11px;color:var(--text3);padding:4px 8px;background:var(--surface3);border-radius:3px;}
+.table-wrap{flex:1;overflow:auto;}
+table{border-collapse:collapse;min-width:100%;font-size:12px;}
+thead{position:sticky;top:0;z-index:5;}
+th{background:var(--surface2);color:var(--text3);padding:8px 12px;text-align:left;font-weight:500;border-bottom:1px solid var(--border);border-right:1px solid var(--border);white-space:nowrap;font-size:11px;}
+th:first-child{background:var(--surface3);width:40px;text-align:center;}
+td{padding:0;border-bottom:1px solid var(--border);border-right:1px solid var(--border);vertical-align:middle;}
+td:first-child{padding:0;border-bottom:1px solid var(--border);border-right:1px solid var(--border);vertical-align:middle;}
+td.td-rn{position:relative;text-align:center;font-size:11px;color:var(--text3);background:var(--surface2);padding:0!important;min-width:40px;width:40px;}
+.cell-input{width:100%;min-width:100px;padding:7px 10px;background:transparent;border:none;outline:none;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;}
+.cell-input:focus{background:rgba(125,200,255,.06);}
+tr:hover td{background:rgba(255,255,255,.012);}
+tr:hover td.td-rn{background:var(--surface3)!important;}
+.cell-fk{width:100%;min-width:100px;padding:5px 8px;background:transparent;border:none;outline:none;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;}
+.cell-fk option{background:var(--surface2);}
+.cell-lookup{width:100%;padding:7px 10px;background:rgba(240,160,96,.05);border:none;color:var(--accent3);font-family:'DM Mono',monospace;font-size:12px;cursor:default;font-style:italic;}
+.cell-rollup{width:100%;padding:7px 10px;background:rgba(208,96,240,.05);border:none;color:var(--accent4);font-family:'DM Mono',monospace;font-size:12px;cursor:default;text-align:center;font-weight:500;}
+td.td-lookup{background:rgba(240,160,96,.03)!important;}
+td.td-rollup{background:rgba(208,96,240,.03)!important;}
+.th-fk{color:var(--accent2)!important;}
+.th-lookup{color:var(--accent3)!important;}
+.th-rollup{color:var(--accent4)!important;}
+.th-chip{display:inline-block;font-size:9px;padding:1px 4px;border-radius:2px;margin-left:3px;}
+.th-chip.fk{background:rgba(125,200,255,.15);color:var(--accent2);}
+.th-chip.lookup{background:rgba(240,160,96,.15);color:var(--accent3);}
+.th-chip.rollup{background:rgba(208,96,240,.15);color:var(--accent4);}
+.empty-data{flex:1;display:flex;align-items:center;justify-content:center;color:var(--text3);flex-direction:column;gap:8px;}
+.empty-data .big{font-family:'Fraunces',serif;font-size:22px;color:var(--text2);font-style:italic;}
+/* Row / col delete */
+th.th-col{position:relative;}
+.col-del{display:inline-block;font-size:10px;color:var(--text3);cursor:pointer;opacity:0;padding:1px 4px;border-radius:3px;transition:all .1s;margin-left:4px;vertical-align:middle;}
+th.th-col:hover .col-del{opacity:1;}
+.col-del:hover{color:var(--danger);background:rgba(240,96,96,.15);}
+td.td-rn{position:relative;text-align:center;font-size:11px;color:var(--text3);background:var(--surface2);padding:0!important;min-width:40px;width:40px;}
+.rn-num{display:flex;align-items:center;justify-content:center;height:100%;padding:7px 4px;transition:opacity .1s;}
+tr:hover .rn-num{opacity:0;}
+.rn-del{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--danger);cursor:pointer;opacity:0;transition:opacity .1s;}
+tr:hover .rn-del{opacity:1;}
+.rn-del:hover{background:rgba(240,96,96,.1);}
+/* Link edit badge on th */
+.th-link-edit{cursor:pointer;border-radius:3px;padding:1px 2px;transition:background .1s;}
+.th-link-edit:hover{background:rgba(255,255,255,.08);}
+.lk-edit-icon{font-size:9px;color:var(--text3);opacity:0;margin-left:2px;transition:opacity .1s;}
+th:hover .lk-edit-icon{opacity:1;}
+/* MODALS */
+.modal-overlay,.link-modal,.addprop-modal,.tutorial-modal{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;z-index:1000;}
+.modal-overlay.open,.link-modal.open,.addprop-modal.open,.tutorial-modal.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.6);max-height:90vh;overflow-y:auto;}
+.modal h2{font-family:'Fraunces',serif;font-size:20px;margin-bottom:6px;}
+.modal p{font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6;}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap;}
+.format-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;}
+.format-opt{padding:12px;border-radius:var(--r2);border:1px solid var(--border2);cursor:pointer;transition:all .15s;text-align:center;}
+.format-opt:hover{background:var(--surface2);}
+.format-opt.selected{border-color:var(--accent);background:rgba(200,240,96,.08);}
+.fmt-name{font-size:14px;font-weight:500;color:var(--text);}
+.fmt-desc{font-size:10px;color:var(--text3);margin-top:2px;}
+.link-row{display:flex;gap:8px;align-items:center;margin-bottom:10px;}
+.link-row label{font-size:11px;color:var(--text2);min-width:78px;}
+.link-row select,.link-row .input{flex:1;padding:7px 10px;border-radius:var(--r2);background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none;}
+.sub-config{margin-top:8px;padding:12px;background:var(--bg);border-radius:var(--r2);border:1px solid var(--border);display:none;}
+.sub-config.visible{display:block;}
+.sub-label{font-size:10px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;}
+.rollup-ops{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.rop{padding:4px 10px;border-radius:3px;font-size:11px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);cursor:pointer;font-family:'DM Mono',monospace;transition:all .1s;}
+.rop.selected{background:rgba(208,96,240,.2);border-color:var(--accent4);color:var(--accent4);}
+/* TUTORIAL */
+.tutorial-modal .modal{width:600px;padding:0;}
+.tut-header{padding:20px 24px 14px;border-bottom:1px solid var(--border);}
+.tut-header h2{font-family:'Fraunces',serif;font-size:22px;margin-bottom:3px;}
+.tut-header p{font-size:12px;color:var(--text2);margin:0;}
+.tut-tabs{display:flex;border-bottom:1px solid var(--border);padding:0 24px;gap:0;overflow-x:auto;}
+.tut-tab{padding:10px 14px;font-size:12px;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;white-space:nowrap;}
+.tut-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tut-tab:hover:not(.active){color:var(--text2);}
+.tut-body{padding:20px 24px;min-height:260px;max-height:400px;overflow-y:auto;}
+.tut-sec{display:none;}
+.tut-sec.active{display:block;}
+.tut-h3{font-size:13px;color:var(--text);margin-bottom:8px;font-weight:500;}
+.tut-p{font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px;}
+.tbadge{display:inline-block;padding:2px 7px;border-radius:3px;font-size:11px;font-weight:500;margin:0 2px;}
+.tbadge.fk{background:rgba(125,200,255,.15);color:var(--accent2);}
+.tbadge.lookup{background:rgba(240,160,96,.15);color:var(--accent3);}
+.tbadge.rollup{background:rgba(208,96,240,.15);color:var(--accent4);}
+.tbox{background:var(--bg);border:1px solid var(--border);border-radius:var(--r2);padding:12px 14px;margin-bottom:12px;}
+.tbox-title{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:6px;}
+.tstep{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;}
+.tnum{width:20px;height:20px;border-radius:50%;background:var(--surface3);color:var(--text3);font-size:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.tstep p{font-size:12px;color:var(--text2);line-height:1.6;margin:0;}
+.tut-footer{padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.tut-nav{display:flex;gap:8px;}
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--surface3);border:1px solid var(--border2);padding:10px 20px;border-radius:20px;font-size:12px;color:var(--text);z-index:9000;animation:tIn .2s ease;pointer-events:none;}
+@keyframes tIn{from{opacity:0;transform:translateX(-50%) translateY(8px);}}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Entity<span>Forge</span></div>
+  <div class="tabs">
+    <button class="tab active" onclick="switchSpace('model')">⬡ Modèle</button>
+    <button class="tab" onclick="switchSpace('data')">⊞ Données</button>
+  </div>
+  <div class="header-actions">
+    <button class="btn" id="undoBtn" onclick="undo()" disabled title="Ctrl+Z">↩ Annuler</button>
+    <button class="btn" onclick="openTutorial()">? Guide</button>
+    <button class="btn primary" onclick="openExport()">↓ Exporter .zip</button>
+  </div>
+</header>
+<main>
+  <div id="space-model">
+    <div class="model-canvas" id="canvas">
+      <canvas class="grid-bg" id="gridCanvas"></canvas>
+      <div class="canvas-inner" id="canvasInner">
+        <svg id="connections-svg"></svg>
+      </div>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoomStep(0.15)">+</button>
+        <div class="zoom-label" id="zoomLabel">100%</div>
+        <button class="zoom-btn" onclick="zoomStep(-0.15)">−</button>
+        <button class="zoom-btn" onclick="zoomReset()" title="Recentrer" style="font-size:11px">⊙</button>
+      </div>
+    </div>
+    <div class="model-panel">
+      <div class="panel-section">
+        <div class="panel-label">Nouvelle entité</div>
+        <div class="add-entity-area">
+          <input class="input" id="newEntityName" placeholder="Nom de l'entité…" onkeydown="if(event.key==='Enter')addEntity()">
+          <div class="color-row" id="colorRow"></div>
+          <div class="count-row">
+            <label>Nb. estimé</label>
+            <input class="input count-input" id="newEntityCount" type="number" min="1" placeholder="50">
+          </div>
+          <button class="btn primary" onclick="addEntity()">+ Ajouter</button>
+        </div>
+      </div>
+      <div class="panel-section" style="padding:10px 0 0">
+        <div class="panel-label" style="padding:0 16px 8px">Entités</div>
+        <div class="entity-list" id="entityList"></div>
+      </div>
+    </div>
+  </div>
+  <div id="space-data">
+    <div class="data-sidebar">
+      <div class="data-sidebar-header">Entités</div>
+      <div class="data-entity-list" id="dataEntityList"></div>
+    </div>
+    <div class="data-main" id="dataMain">
+      <div class="empty-data"><div class="big">Aucune entité</div><div>Crée d'abord des entités dans l'espace Modèle</div></div>
+    </div>
+  </div>
+</main>
+
+<!-- EXPORT -->
+<div class="modal-overlay" id="exportModal">
+  <div class="modal" style="width:400px">
+    <h2>Exporter le package</h2>
+    <p>Un fichier par entité, avec toutes les données saisies. Valeurs Lookup et Rollup résolues.</p>
+    <div class="format-grid">
+      <div class="format-opt selected" data-fmt="csv" onclick="this.classList.toggle('selected')"><div class="fmt-name">.csv</div><div class="fmt-desc">Universel, léger</div></div>
+      <div class="format-opt" data-fmt="json" onclick="this.classList.toggle('selected')"><div class="fmt-name">.json</div><div class="fmt-desc">Structuré + schéma</div></div>
+      <div class="format-opt" data-fmt="tsv" onclick="this.classList.toggle('selected')"><div class="fmt-name">.tsv</div><div class="fmt-desc">Tab-separated</div></div>
+      <div class="format-opt" data-fmt="md" onclick="this.classList.toggle('selected')"><div class="fmt-name">.md</div><div class="fmt-desc">Markdown table</div></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeM('exportModal')">Annuler</button>
+      <button class="btn primary" onclick="doExport()">↓ Générer</button>
+    </div>
+  </div>
+</div>
+
+<!-- LINK -->
+<div class="link-modal" id="linkModal">
+  <div class="modal" style="width:480px">
+    <h2 id="lkModalTitle">Lier une propriété</h2>
+    <p>Connecte cette propriété à une autre entité via FK, Lookup ou Rollup.</p>
+    <div class="link-row"><label>Type</label>
+      <select id="lkType" onchange="onLkType()">
+        <option value="ref">FK — Référence</option>
+        <option value="lookup">Lookup — Afficher valeur</option>
+        <option value="rollup">Rollup — Calcul agrégé</option>
+      </select>
+    </div>
+    <div class="link-row"><label>Entité cible</label><select id="lkEntity" onchange="refreshLkProps()"></select></div>
+    <div class="link-row" id="lkPropRow"><label>Prop. cible</label><select id="lkProp"></select></div>
+    <div class="sub-config" id="lkLookupCfg">
+      <div class="sub-label">Propriété à afficher</div>
+      <div class="link-row" style="margin:0 0 8px"><label>Afficher</label><select id="lkDisplayProp"></select></div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:6px">FK dans cette entité → cible :</div>
+      <div class="link-row" style="margin:0"><label>Via FK</label><select id="lkViaFK"></select></div>
+    </div>
+    <div class="sub-config" id="lkRollupCfg">
+      <div class="sub-label">Opération</div>
+      <div class="rollup-ops">
+        <button class="rop selected" data-op="COUNT" onclick="selRop(this)">COUNT</button>
+        <button class="rop" data-op="SUM" onclick="selRop(this)">SUM</button>
+        <button class="rop" data-op="AVG" onclick="selRop(this)">AVG</button>
+        <button class="rop" data-op="MIN" onclick="selRop(this)">MIN</button>
+        <button class="rop" data-op="MAX" onclick="selRop(this)">MAX</button>
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:6px">Champ à agréger (ignoré pour COUNT) :</div>
+      <div class="link-row" style="margin:0 0 8px"><label>Champ</label><select id="lkRollupField"></select></div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:6px">FK dans la table cible → cette entité :</div>
+      <div class="link-row" style="margin:0"><label>Via FK</label><select id="lkRollupViaFK"></select></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeM('linkModal')">Annuler</button>
+      <button class="btn danger-btn" id="lkRemoveBtn" onclick="removeLink()" style="display:none">Supprimer</button>
+      <button class="btn primary" id="lkSaveBtn" onclick="saveLink()">Lier</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD PROP (data space) -->
+<div class="addprop-modal" id="addPropModal">
+  <div class="modal" style="width:340px">
+    <h2>Ajouter une colonne</h2>
+    <p>Nouvelle propriété visible dans le Modèle et les Données.</p>
+    <div class="link-row"><label>Nom</label><input class="input" id="apName" placeholder="Nom…" onkeydown="if(event.key==='Enter')doAddProp()"></div>
+    <div class="link-row"><label>Type</label>
+      <select id="apType" style="flex:1;padding:7px 10px;border-radius:var(--r2);background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none;">
+        <option>text</option><option>number</option><option>date</option><option>boolean</option><option>email</option><option>url</option><option>select</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeM('addPropModal')">Annuler</button>
+      <button class="btn primary" onclick="doAddProp()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- TUTORIAL -->
+<div class="tutorial-modal" id="tutorialModal">
+  <div class="modal">
+    <div class="tut-header">
+      <h2>Guide EntityForge</h2>
+      <p>Modélisation, liaisons, remplissage et export — tout est ici.</p>
+    </div>
+    <div class="tut-tabs">
+      <div class="tut-tab active" onclick="tutGo(0)">Concept</div>
+      <div class="tut-tab" onclick="tutGo(1)">Espace Modèle</div>
+      <div class="tut-tab" onclick="tutGo(2)">FK</div>
+      <div class="tut-tab" onclick="tutGo(3)">Lookup</div>
+      <div class="tut-tab" onclick="tutGo(4)">Rollup</div>
+      <div class="tut-tab" onclick="tutGo(5)">Export & Undo</div>
+    </div>
+    <div class="tut-body">
+      <div class="tut-sec active">
+        <div class="tut-h3">L'idée centrale</div>
+        <div class="tut-p">EntityForge inverse la logique des tableurs. Normalement tu remplis un tableau vide — ce qui crée une pression immédiate. Ici, tu <strong>définis d'abord la structure</strong> de tes données, puis tu remplis quand tu veux.</div>
+        <div class="tbox"><div class="tbox-title">Entité = trame</div><div class="tut-p" style="margin:0">Un bloc avec un nom et des propriétés. Chaque propriété = une colonne future. Exemple : entité <em>Client</em> avec Nom, Email, Téléphone → tableau à 3 colonnes, prêt à remplir.</div></div>
+        <div class="tut-h3">Les deux espaces</div>
+        <div class="tut-p"><strong>⬡ Modèle</strong> — structure : crée des entités, des propriétés, des liaisons entre entités. C'est le schéma.</div>
+        <div class="tut-p"><strong>⊞ Données</strong> — saisie : remplis les tables ligne par ligne. Les colonnes liées (FK, Lookup, Rollup) se comportent intelligemment.</div>
+      </div>
+      <div class="tut-sec">
+        <div class="tut-h3">Créer une entité</div>
+        <div class="tstep"><div class="tnum">1</div><p>Panneau droit : saisis un nom, choisis une couleur, indique le nombre estimé de lignes (modifiable plus tard).</p></div>
+        <div class="tstep"><div class="tnum">2</div><p>Clique "+ Ajouter". Une carte apparaît sur le canvas. Déplace-la en glissant depuis l'en-tête coloré.</p></div>
+        <div class="tstep"><div class="tnum">3</div><p>Renomme les propriétés en cliquant dessus. Change leur type via le menu déroulant (text, number, date…).</p></div>
+        <div class="tstep"><div class="tnum">4</div><p>Clique "+ propriété" pour ajouter des colonnes. Survole une propriété pour faire apparaître le ✕ de suppression.</p></div>
+        <div class="tut-h3">Navigation canvas</div>
+        <div class="tut-p"><strong>Pan</strong> : clic droit maintenu + glisser sur le fond, ou bouton du milieu.<br><strong>Zoom</strong> : molette de la souris, ou boutons +/− en bas à gauche.<br><strong>⊙</strong> : recentre la vue à 100%.<br><strong>Clic sur une entité</strong> dans le panneau droit : centre la vue sur sa carte.</p></div>
+      </div>
+      <div class="tut-sec">
+        <div class="tut-h3"><span class="tbadge fk">FK</span> Foreign Key — Référence</div>
+        <div class="tut-p">Une FK dit : <em>"cette cellule pointe vers un enregistrement d'une autre table"</em>. C'est la liaison de base, le prérequis pour les Lookup et Rollup.</div>
+        <div class="tbox"><div class="tbox-title">Exemple</div><div class="tut-p" style="margin:0">Table <strong>Commandes</strong>, propriété <em>Client</em> → FK vers <strong>Clients</strong>.<br>Dans l'espace Données : la cellule devient un menu déroulant listant tous tes clients. Tu sélectionnes, c'est lié.</div></div>
+        <div class="tut-h3">Comment créer</div>
+        <div class="tstep"><div class="tnum">1</div><p>Sur la carte source (Commandes), clique ⇌ à droite de la propriété à lier.</p></div>
+        <div class="tstep"><div class="tnum">2</div><p>Type = <strong>FK — Référence</strong>. Sélectionne l'entité cible (Clients). Clique Lier.</p></div>
+        <div class="tstep"><div class="tnum">3</div><p>Une courbe <span style="color:var(--accent2)">bleue</span> apparaît entre les cartes.</p></div>
+        <div class="tut-p" style="color:var(--text3);font-size:11px">💡 Commence toujours par créer une FK avant d'ajouter un Lookup ou un Rollup.</div>
+      </div>
+      <div class="tut-sec">
+        <div class="tut-h3"><span class="tbadge lookup">LOOKUP</span> Lookup — Valeur automatique</div>
+        <div class="tut-p">Un Lookup ramène automatiquement la valeur d'une propriété de la table liée. La colonne se remplit toute seule dès qu'une FK est sélectionnée. Elle est en lecture seule.</div>
+        <div class="tbox"><div class="tbox-title">Exemple</div><div class="tut-p" style="margin:0">Table <strong>Commandes</strong>, propriété <em>Email client</em> → Lookup vers la propriété <em>Email</em> de <strong>Clients</strong>, via la FK <em>Client</em>.<br>Choisis "Alice" → l'email s'affiche automatiquement en <span style="color:var(--accent3)">orange italique</span>.</div></div>
+        <div class="tut-h3">Comment créer</div>
+        <div class="tstep"><div class="tnum">1</div><p>Il faut d'abord une <span class="tbadge fk" style="font-size:10px">FK</span> dans cette table vers l'entité cible.</p></div>
+        <div class="tstep"><div class="tnum">2</div><p>Clique ⇌ sur la propriété. Type = <strong>Lookup</strong>. Entité cible, propriété à afficher, et FK de liaison.</p></div>
+        <div class="tstep"><div class="tnum">3</div><p>La courbe devient <span style="color:var(--accent3)">orange</span>. Dans l'espace Données, la cellule se calcule seule.</p></div>
+      </div>
+      <div class="tut-sec">
+        <div class="tut-h3"><span class="tbadge rollup">ROLLUP</span> Rollup — Agrégation</div>
+        <div class="tut-p">Un Rollup calcule une valeur agrégée à partir des lignes de la table liée qui pointent vers cet enregistrement. Comptage, somme, moyenne, min ou max.</div>
+        <div class="tbox"><div class="tbox-title">Exemple</div><div class="tut-p" style="margin:0">Table <strong>Clients</strong>, propriété <em>Nb commandes</em> → Rollup COUNT sur <strong>Commandes</strong>, via la FK <em>Client</em> dans Commandes.<br>Pour Alice : affiche automatiquement "3" si elle a 3 commandes.</div></div>
+        <div class="tut-h3">Comment créer</div>
+        <div class="tstep"><div class="tnum">1</div><p>La table cible (Commandes) doit avoir une <span class="tbadge fk" style="font-size:10px">FK</span> pointant vers cette table (Clients).</p></div>
+        <div class="tstep"><div class="tnum">2</div><p>Clique ⇌ sur la propriété dans Clients. Type = <strong>Rollup</strong>. Entité cible, opération, champ (pour SUM/AVG/MIN/MAX), FK dans la cible.</p></div>
+        <div class="tstep"><div class="tnum">3</div><p>La courbe devient <span style="color:var(--accent4)">violette</span>. La cellule se calcule en temps réel.</p></div>
+        <div class="tut-p" style="color:var(--text3);font-size:11px">💡 COUNT ne nécessite pas de champ numérique — il compte juste les lignes correspondantes.</div>
+      </div>
+      <div class="tut-sec">
+        <div class="tut-h3">Exporter</div>
+        <div class="tut-p">Clique <strong>↓ Exporter .zip</strong>. Choisis un ou plusieurs formats. Tu obtiens un .zip avec un fichier par entité — valeurs Lookup et Rollup résolues, pas d'index internes.</div>
+        <div class="tbox"><div class="tbox-title">Formats</div><div class="tut-p" style="margin:0"><strong>.csv</strong> — Excel, Google Sheets, tout outil<br><strong>.json</strong> — Structuré + schéma complet, idéal API<br><strong>.tsv</strong> — Variante du CSV, tab-separated<br><strong>.md</strong> — Markdown table, pour la doc</div></div>
+        <div class="tut-h3">Annuler (Undo)</div>
+        <div class="tut-p">Le bouton <strong>↩ Annuler</strong> dans le header (ou <strong>Ctrl+Z</strong>) annule la dernière action structurelle : ajout/suppression d'entité, de propriété, création de liaison, déplacement de carte. L'historique conserve les 30 dernières actions.</div>
+        <div class="tut-h3">Depuis l'espace Données</div>
+        <div class="tut-p">Toolbar de chaque table : <strong>+ colonne</strong> ajoute une propriété sans quitter la vue données · <strong>+ ligne</strong> ajoute une ligne · <strong>Supprimer</strong> supprime toute la table (avec confirmation).</div>
+      </div>
+    </div>
+    <div class="tut-footer">
+      <div style="font-size:11px;color:var(--text3)" id="tutPg">1 / 6</div>
+      <div class="tut-nav">
+        <button class="btn" id="tutPrev" onclick="tutStep(-1)" disabled>← Préc.</button>
+        <button class="btn primary" id="tutNext" onclick="tutStep(1)">Suiv. →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+// ═══════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════
+const COLS=['#c8f060','#7dc8ff','#f0a060','#d060f0','#60f0c8','#f06080','#f0e060','#60a0f0'];
+let entities=[], selColor=COLS[0], curDE=null, lkCtx=null, apCtx=null;
+let dragSt=null, zoom=1, panX=0, panY=0, isPan=false, panSt={};
+let hist=[], tutIdx=0;
+
+// ═══════════════════════════════════════
+// UNDO
+// ═══════════════════════════════════════
+function snap(){
+  hist.push(JSON.stringify({e:entities.map(e=>({...e,props:e.props.map(p=>({...p})),rows:e.rows.map(r=>[...r])})),cp:{...cardPos}}));
+  if(hist.length>30) hist.shift();
+  document.getElementById('undoBtn').disabled=hist.length<2;
+}
+let cardPos={};
+function undo(){
+  if(hist.length<2) return;
+  hist.pop();
+  const s=JSON.parse(hist[hist.length-1]);
+  entities=s.e; cardPos=s.cp;
+  if(curDE&&!entities.find(e=>e.id===curDE)) curDE=entities[0]?.id||null;
+  renderAll(); if(curDE) renderDT(curDE);
+  document.getElementById('undoBtn').disabled=hist.length<2;
+  toast('Action annulée');
+}
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+function init(){
+  renderColorRow(); setupCanvas(); drawGrid(); renderAll(); snap();
+  document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();undo();}});
+}
+function renderColorRow(){
+  document.getElementById('colorRow').innerHTML=COLS.map(c=>`<div class="color-dot${c===selColor?' selected':''}" style="background:${c}" onclick="selC('${c}')"></div>`).join('');
+}
+function selC(c){selColor=c;renderColorRow();}
+
+// ═══════════════════════════════════════
+// ZOOM / PAN
+// ═══════════════════════════════════════
+function applyT(){
+  document.getElementById('canvasInner').style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`;
+  document.getElementById('zoomLabel').textContent=Math.round(zoom*100)+'%';
+  drawGrid();
+}
+function zoomStep(d){zoom=Math.min(2.5,Math.max(0.2,zoom+d));applyT();}
+function zoomReset(){zoom=1;panX=0;panY=0;applyT();}
+function drawGrid(){
+  const cv=document.getElementById('gridCanvas'),p=cv.parentElement;
+  cv.width=p.offsetWidth; cv.height=p.offsetHeight;
+  const ctx=cv.getContext('2d'), sz=28*zoom;
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const ox=((panX%sz)+sz)%sz, oy=((panY%sz)+sz)%sz;
+  ctx.fillStyle='rgba(46,49,56,0.9)';
+  for(let x=ox;x<cv.width;x+=sz) for(let y=oy;y<cv.height;y+=sz) ctx.fillRect(x-1,y-1,2,2);
+}
+function setupCanvas(){
+  const cv=document.getElementById('canvas');
+  cv.addEventListener('wheel',e=>{
+    e.preventDefault();
+    const r=cv.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
+    const d=e.deltaY<0?0.1:-0.1, nz=Math.min(2.5,Math.max(0.2,zoom+d));
+    panX=mx-(mx-panX)*(nz/zoom); panY=my-(my-panY)*(nz/zoom); zoom=nz; applyT();
+  },{passive:false});
+  cv.addEventListener('mousedown',e=>{
+    if(e.button===1||e.button===2){e.preventDefault();isPan=true;panSt={x:e.clientX,y:e.clientY,px:panX,py:panY};cv.style.cursor='grabbing';}
+  });
+  window.addEventListener('mousemove',e=>{if(!isPan) return;panX=panSt.px+(e.clientX-panSt.x);panY=panSt.py+(e.clientY-panSt.y);applyT();});
+  window.addEventListener('mouseup',e=>{if(e.button===1||e.button===2){isPan=false;document.getElementById('canvas').style.cursor='';}});
+  cv.addEventListener('contextmenu',e=>e.preventDefault());
+  window.addEventListener('resize',drawGrid);
+}
+
+// ═══════════════════════════════════════
+// ENTITY CRUD
+// ═══════════════════════════════════════
+function uid(){return Math.random().toString(36).slice(2,9);}
+function addEntity(){
+  snap();
+  const name=document.getElementById('newEntityName').value.trim()||'Entité';
+  const count=parseInt(document.getElementById('newEntityCount').value)||50;
+  const id=uid();
+  entities.push({id,name,color:selColor,count,props:[{id:uid(),name:'Nom',type:'text'},{id:uid(),name:'Description',type:'text'}],rows:Array.from({length:count},()=>[])});
+  const n=Object.keys(cardPos).length;
+  cardPos[id]={x:40+(n%3)*290,y:40+Math.floor(n/3)*280};
+  document.getElementById('newEntityName').value='';document.getElementById('newEntityCount').value='';
+  renderAll(); snap(); toast(`Entité «\u00a0${name}\u00a0» créée`);
+}
+function deleteEntity(id){
+  snap();
+  entities=entities.filter(e=>e.id!==id); delete cardPos[id];
+  entities.forEach(e=>e.props.forEach(p=>{if(p.link?.entityId===id) delete p.link;}));
+  if(curDE===id){curDE=entities[0]?.id||null;}
+  renderAll(); if(curDE) renderDT(curDE); snap(); toast('Entité supprimée');
+}
+function upEntityName(id,v){const e=entities.find(e=>e.id===id);if(e){e.name=v;renderEntityList();renderDS();}}
+
+// PROPS
+function addProp(eid){
+  snap();
+  const e=entities.find(e=>e.id===eid);if(!e) return;
+  e.props.push({id:uid(),name:'Propriété',type:'text'});e.rows.forEach(r=>r.push(''));
+  renderCard(eid);if(curDE===eid) renderDT(eid); snap();
+}
+function delProp(eid,pid){
+  snap();
+  const e=entities.find(e=>e.id===eid);if(!e) return;
+  const pi=e.props.findIndex(p=>p.id===pid);if(pi===-1) return;
+  e.props.splice(pi,1);e.rows.forEach(r=>r.splice(pi,1));
+  renderCard(eid);if(curDE===eid) renderDT(eid); snap();
+}
+function upPropName(eid,pid,v){const e=entities.find(e=>e.id===eid);const p=e?.props.find(p=>p.id===pid);if(p){p.name=v;if(curDE===eid) renderDT(eid);}}
+function upPropType(eid,pid,v){const e=entities.find(e=>e.id===eid);const p=e?.props.find(p=>p.id===pid);if(p) p.type=v;}
+
+// ADD PROP from data space
+function openAP(eid){apCtx=eid;document.getElementById('apName').value='';document.getElementById('apType').value='text';document.getElementById('addPropModal').classList.add('open');setTimeout(()=>document.getElementById('apName').focus(),50);}
+function doAddProp(){
+  if(!apCtx) return;
+  const name=document.getElementById('apName').value.trim()||'Propriété';
+  const type=document.getElementById('apType').value;
+  snap();
+  const e=entities.find(e=>e.id===apCtx);
+  if(e){e.props.push({id:uid(),name,type});e.rows.forEach(r=>r.push(''));renderCard(apCtx);renderDT(apCtx);renderDS();}
+  closeM('addPropModal'); snap(); toast(`Colonne «\u00a0${name}\u00a0» ajoutée`);
+}
+
+// ═══════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════
+function renderAll(){renderCards();renderConn();renderEntityList();renderDS();}
+function lbdg(lt){
+  if(lt==='ref') return `<span style="font-size:9px;padding:1px 4px;border-radius:2px;background:rgba(125,200,255,.15);color:var(--accent2)">FK</span>`;
+  if(lt==='lookup') return `<span style="font-size:9px;padding:1px 4px;border-radius:2px;background:rgba(240,160,96,.15);color:var(--accent3)">LOOKUP</span>`;
+  if(lt==='rollup') return `<span style="font-size:9px;padding:1px 4px;border-radius:2px;background:rgba(208,96,240,.15);color:var(--accent4)">ROLLUP</span>`;
+  return '';
+}
+function renderCards(){
+  const inn=document.getElementById('canvasInner');
+  inn.querySelectorAll('.entity-card').forEach(el=>el.remove());
+  entities.forEach(e=>{
+    const pos=cardPos[e.id]||{x:40,y:40};
+    const card=document.createElement('div');card.className='entity-card';card.id='card-'+e.id;
+    card.style.left=pos.x+'px';card.style.top=pos.y+'px';card.innerHTML=cardHTML(e);
+    inn.appendChild(card);setupDrag(card,e.id);
+  });
+}
+function cardHTML(e){
+  return `<div class="card-header"><div class="entity-dot" style="background:${e.color}"></div>
+    <input class="card-title" value="${X(e.name)}" onchange="upEntityName('${e.id}',this.value)" onclick="this.select()">
+    <div class="card-count-badge" onclick="promptCount('${e.id}')">${e.count}</div>
+    <div class="card-del" onclick="deleteEntity('${e.id}')">✕</div></div>
+  <div class="card-props">${e.props.map(p=>{
+    const lk=p.link,ln=lk?entities.find(en=>en.id===lk.entityId):null;
+    return `<div class="prop-row"><input class="prop-name" value="${X(p.name)}" onchange="upPropName('${e.id}','${p.id}',this.value)" onclick="this.select()">
+      <select class="prop-type" onchange="upPropType('${e.id}','${p.id}',this.value)">
+        ${['text','number','date','boolean','email','url','select'].map(t=>`<option${p.type===t?' selected':''}>${t}</option>`).join('')}
+      </select>
+      ${ln?lbdg(lk.linkType)+'<span class="prop-link-tag">→'+X(ln.name)+'</span>':''}
+      <span class="prop-link-btn${lk?' linked':''}" onclick="openLM('${e.id}','${p.id}')">⇌</span>
+      <span class="prop-del" onclick="delProp('${e.id}','${p.id}')">✕</span></div>`;
+  }).join('')}</div>
+  <div class="card-footer"><div class="add-prop-btn" onclick="addProp('${e.id}')">+ propriété</div></div>`;
+}
+function renderCard(eid){const e=entities.find(e=>e.id===eid);const c=document.getElementById('card-'+eid);if(!e||!c) return;c.innerHTML=cardHTML(e);setupDrag(c,eid);renderConn();}
+
+function promptCount(id){
+  const e=entities.find(e=>e.id===id);if(!e) return;
+  const n=prompt(`Lignes pour «\u00a0${e.name}\u00a0» :`,e.count);if(n===null) return;
+  const num=parseInt(n);if(!isNaN(num)&&num>0){snap();e.count=num;while(e.rows.length<num)e.rows.push([]);e.rows=e.rows.slice(0,num);renderCard(id);renderEntityList();renderDS();if(curDE===id)renderDT(id);snap();}
+}
+
+// DRAG
+function setupDrag(card,id){
+  const hdr=card.querySelector('.card-header');
+  hdr.addEventListener('mousedown',e=>{
+    if(e.button!==0||e.target.tagName==='INPUT'||e.target.classList.contains('card-del')) return;
+    e.preventDefault();e.stopPropagation();
+    const p=cardPos[id];dragSt={id,sx:e.clientX,sy:e.clientY,ox:p.x,oy:p.y};
+    document.addEventListener('mousemove',onDM);document.addEventListener('mouseup',onDU);
+  });
+}
+function onDM(e){if(!dragSt) return;const dx=(e.clientX-dragSt.sx)/zoom,dy=(e.clientY-dragSt.sy)/zoom;cardPos[dragSt.id]={x:Math.max(0,dragSt.ox+dx),y:Math.max(0,dragSt.oy+dy)};const c=document.getElementById('card-'+dragSt.id);if(c){c.style.left=cardPos[dragSt.id].x+'px';c.style.top=cardPos[dragSt.id].y+'px';}renderConn();}
+function onDU(){if(dragSt){dragSt=null;snap();}document.removeEventListener('mousemove',onDM);document.removeEventListener('mouseup',onDU);}
+
+function renderConn(){
+  const svg=document.getElementById('connections-svg');
+  const colMap={ref:'var(--accent2)',lookup:'var(--accent3)',rollup:'var(--accent4)'};
+  svg.innerHTML=entities.flatMap(e=>e.props.filter(p=>p.link).map(p=>{
+    const t=entities.find(t=>t.id===p.link.entityId);if(!t) return '';
+    const sp=cardPos[e.id],tp=cardPos[t.id];if(!sp||!tp) return '';
+    const x1=sp.x+264,y1=sp.y+50,x2=tp.x,y2=tp.y+50,col=colMap[p.link.linkType]||'var(--accent2)';
+    return `<path d="M${x1},${y1} C${x1+70},${y1} ${x2-70},${y2} ${x2},${y2}" stroke="${col}" stroke-width="1.5" fill="none" opacity=".45" stroke-dasharray="5,4"/>
+    <circle cx="${x1}" cy="${y1}" r="4" fill="${col}" opacity=".7"/><circle cx="${x2}" cy="${y2}" r="4" fill="${col}" opacity=".7"/>`;
+  })).join('');
+}
+
+function renderEntityList(){
+  const el=document.getElementById('entityList');
+  if(!entities.length){el.innerHTML=`<div style="padding:12px 16px;font-size:11px;color:var(--text3)">Aucune entité</div>`;return;}
+  el.innerHTML=entities.map(e=>`<div class="entity-list-item" onclick="focusCard('${e.id}')"><div class="eli-dot" style="background:${e.color}"></div><div class="eli-name">${X(e.name)}</div><div class="eli-count">${e.count}</div></div>`).join('');
+}
+function focusCard(id){
+  const c=document.getElementById('card-'+id);if(!c) return;
+  const cv=document.getElementById('canvas'),pos=cardPos[id];
+  panX=cv.offsetWidth/2-(pos.x+132)*zoom; panY=cv.offsetHeight/2-(pos.y+80)*zoom; applyT();
+  c.classList.add('selected');setTimeout(()=>c.classList.remove('selected'),1200);
+}
+
+// ═══════════════════════════════════════
+// DATA SPACE
+// ═══════════════════════════════════════
+function renderDS(){
+  const el=document.getElementById('dataEntityList');
+  if(!entities.length){el.innerHTML='';return;}
+  el.innerHTML=entities.map(e=>{
+    const f=e.rows.filter(r=>r.some(v=>v&&String(v).trim())).length;
+    return `<div class="data-entity-item${curDE===e.id?' active':''}" onclick="selDE('${e.id}')">
+      <div class="dei-dot" style="background:${e.color}"></div>
+      <div class="dei-info"><div class="dei-name">${X(e.name)}</div><div class="dei-sub">${e.count}L · ${e.props.length}C</div></div>
+      ${f?`<div class="dei-filled">${f}</div>`:''}
+    </div>`;
+  }).join('');
+}
+function selDE(id){curDE=id;renderDS();renderDT(id);}
+
+// COMPUTED
+function getFKOpts(tid){const t=entities.find(e=>e.id===tid);return t?t.rows.map((r,i)=>({v:String(i),l:r[0]||`#${i+1}`})):[];}
+function compLookup(ent,ri,prop){
+  const lk=prop.link,t=entities.find(e=>e.id===lk.entityId);if(!t) return '';
+  const fkP=ent.props.find(p=>p.id===lk.viaFKPropId);if(!fkP) return '';
+  const fkI=ent.props.indexOf(fkP),fkV=ent.rows[ri]?.[fkI];
+  if(fkV===undefined||fkV==='') return '';
+  const tri=parseInt(fkV);if(isNaN(tri)) return '';
+  const tr=t.rows[tri];if(!tr) return '';
+  const di=t.props.findIndex(p=>p.id===lk.lookupDisplayPropId);
+  return tr[di>=0?di:0]||'';
+}
+function compRollup(ent,ri,prop){
+  const lk=prop.link,t=entities.find(e=>e.id===lk.entityId);if(!t) return '';
+  const fkP=t.props.find(p=>p.id===lk.rollupViaFKPropId);if(!fkP) return '';
+  const fkI=t.props.indexOf(fkP);
+  const rows=t.rows.filter(r=>parseInt(r[fkI])===ri);
+  const op=lk.rollupOp||'COUNT';
+  if(op==='COUNT') return rows.length;
+  const fp=t.props.find(p=>p.id===lk.rollupFieldPropId);
+  const fi=fp?t.props.indexOf(fp):0;
+  const nums=rows.map(r=>parseFloat(r[fi])).filter(n=>!isNaN(n));
+  if(!nums.length) return '—';
+  if(op==='SUM') return nums.reduce((a,b)=>a+b,0);
+  if(op==='AVG') return (nums.reduce((a,b)=>a+b,0)/nums.length).toFixed(2);
+  if(op==='MIN') return Math.min(...nums);
+  if(op==='MAX') return Math.max(...nums);
+}
+
+function renderDT(id){
+  const e=entities.find(e=>e.id===id);
+  const main=document.getElementById('dataMain');
+  if(!e){main.innerHTML=`<div class="empty-data"><div class="big">Introuvable</div></div>`;return;}
+  while(e.rows.length<e.count) e.rows.push([]);
+  e.rows=e.rows.slice(0,e.count);e.rows.forEach(r=>{while(r.length<e.props.length) r.push('');});
+  const thCls=p=>!p.link?'':p.link.linkType==='ref'?'th-fk':p.link.linkType==='lookup'?'th-lookup':'th-rollup';
+  const chip=p=>{
+    if(!p.link) return '';
+    const label=p.link.linkType==='ref'?`<span class="th-chip fk">FK</span>`:p.link.linkType==='lookup'?`<span class="th-chip lookup">LOOKUP</span>`:`<span class="th-chip rollup">${p.link.rollupOp||'ROLLUP'}</span>`;
+    return `<span class="th-link-edit" onclick="openLM('${id}','${p.id}')" title="Modifier la liaison">${label}<span class="lk-edit-icon">✎</span></span>`;
+  };
+  const tname=p=>p.link?(entities.find(t=>t.id===p.link.entityId)?.name||''):'';
+  main.innerHTML=`
+  <div class="data-toolbar">
+    <div><div class="data-title">${X(e.name)}</div><div class="data-subtitle">${e.props.length} colonnes</div></div>
+    <div class="spacer"></div>
+    <div class="row-count-tag">${e.count} lignes</div>
+    <button class="btn" onclick="openAP('${id}')">+ colonne</button>
+    <button class="btn" onclick="addRow('${id}')">+ ligne</button>
+    <button class="btn danger-btn" onclick="confirmDel('${id}')">Supprimer table</button>
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr>
+      <th style="background:var(--surface3);width:40px;text-align:center">#</th>
+      ${e.props.map((p,pi)=>`<th class="th-col ${thCls(p)}">
+        ${X(p.name)}${chip(p)}${tname(p)?`<span style="font-size:9px;color:var(--text3);margin-left:3px">→${X(tname(p))}</span>`:''}
+        <span class="col-del" onclick="delColFromData('${id}',${pi})" title="Supprimer cette colonne">✕</span>
+      </th>`).join('')}
+    </tr></thead>
+    <tbody>${e.rows.map((r,ri)=>`<tr>
+      <td class="td-rn">
+        <div class="rn-num">${ri+1}</div>
+        <div class="rn-del" onclick="delRowFromData('${id}',${ri})" title="Supprimer cette ligne">×</div>
+      </td>
+      ${e.props.map((p,pi)=>buildCell(e,r,ri,p,pi)).join('')}
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+function buildCell(ent,row,ri,prop,pi){
+  const lk=prop.link;
+  if(lk?.linkType==='rollup') return `<td class="td-rollup"><div class="cell-rollup">${compRollup(ent,ri,prop)}</div></td>`;
+  if(lk?.linkType==='lookup') return `<td class="td-lookup"><div class="cell-lookup">${X(String(compLookup(ent,ri,prop)))}</div></td>`;
+  if(lk?.linkType==='ref'){
+    const opts=getFKOpts(lk.entityId),cur=row[pi]||'';
+    return `<td><select class="cell-fk" onchange="setCell('${ent.id}',${ri},${pi},this.value);renderDT('${ent.id}')"><option value="">— aucun —</option>${opts.map(o=>`<option value="${o.v}"${cur===o.v?' selected':''}>${X(o.l)}</option>`).join('')}</select></td>`;
+  }
+  const it=prop.type==='number'?'number':prop.type==='date'?'date':'text';
+  return `<td><input class="cell-input" value="${X(row[pi]||'')}" type="${it}" onchange="setCell('${ent.id}',${ri},${pi},this.value)"></td>`;
+}
+function setCell(eid,ri,pi,v){const e=entities.find(e=>e.id===eid);if(e&&e.rows[ri]) e.rows[ri][pi]=v;renderDS();}
+function addRow(id){snap();const e=entities.find(e=>e.id===id);if(!e) return;e.count++;e.rows.push(Array(e.props.length).fill(''));renderDT(id);renderDS();renderEntityList();renderCard(id);snap();}
+
+function delRowFromData(id,ri){
+  snap();
+  const e=entities.find(e=>e.id===id);if(!e) return;
+  e.rows.splice(ri,1);e.count=Math.max(0,e.count-1);
+  renderDT(id);renderDS();renderEntityList();renderCard(id);snap();
+  toast('Ligne supprimée');
+}
+
+function delColFromData(id,pi){
+  const e=entities.find(e=>e.id===id);if(!e) return;
+  const pname=e.props[pi]?.name||'cette colonne';
+  if(!confirm(`Supprimer la colonne «\u00a0${pname}\u00a0» et toutes ses données ?`)) return;
+  snap();
+  e.props.splice(pi,1);e.rows.forEach(r=>r.splice(pi,1));
+  renderCard(id);renderDT(id);renderDS();snap();
+  toast(`Colonne «\u00a0${pname}\u00a0» supprimée`);
+}
+function confirmDel(id){
+  const e=entities.find(e=>e.id===id);if(!e) return;
+  if(!confirm(`Supprimer «\u00a0${e.name}\u00a0» et toutes ses données ?`)) return;
+  deleteEntity(id);
+  if(entities.length) selDE(entities[0].id);
+  else document.getElementById('dataMain').innerHTML=`<div class="empty-data"><div class="big">Aucune entité</div><div>Retourne dans le Modèle.</div></div>`;
+}
+
+// ═══════════════════════════════════════
+// LINK MODAL
+// ═══════════════════════════════════════
+function onLkType(){
+  const lt=document.getElementById('lkType').value;
+  document.getElementById('lkLookupCfg').classList.toggle('visible',lt==='lookup');
+  document.getElementById('lkRollupCfg').classList.toggle('visible',lt==='rollup');
+  document.getElementById('lkPropRow').style.display=lt==='rollup'?'none':'flex';
+  refreshLkProps();
+}
+function selRop(btn){document.querySelectorAll('.rop').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');}
+function openLM(eid,pid){
+  const e=entities.find(e=>e.id===eid),p=e?.props.find(p=>p.id===pid);if(!e||!p) return;
+  const others=entities.filter(en=>en.id!==eid);if(!others.length){toast('Crée au moins 2 entités');return;}
+  lkCtx={eid,pid};
+  document.getElementById('lkEntity').innerHTML=others.map(en=>`<option value="${en.id}"${p.link?.entityId===en.id?' selected':''}>${X(en.name)}</option>`).join('');
+  document.getElementById('lkType').value=p.link?.linkType||'ref';
+  refreshLkProps();onLkType();
+  if(p.link?.rollupOp) document.querySelectorAll('.rop').forEach(b=>b.classList.toggle('selected',b.dataset.op===p.link.rollupOp));
+  // Show/hide remove button, update save label
+  const hasLink=!!p.link;
+  document.getElementById('lkRemoveBtn').style.display=hasLink?'inline-block':'none';
+  document.getElementById('lkSaveBtn').textContent=hasLink?'Enregistrer':'Lier';
+  document.getElementById('lkModalTitle').textContent=hasLink?'Modifier la liaison':'Lier une propriété';
+  document.getElementById('linkModal').classList.add('open');
+}
+function refreshLkProps(){
+  const eid=document.getElementById('lkEntity').value,t=entities.find(e=>e.id===eid);
+  const lt=document.getElementById('lkType').value;
+  const se=entities.find(e=>e.id===lkCtx?.eid),sp=se?.props.find(p=>p.id===lkCtx?.pid);
+  const ps=document.getElementById('lkProp');
+  if(t) ps.innerHTML=t.props.map(pr=>`<option value="${pr.id}"${sp?.link?.propId===pr.id?' selected':''}>${X(pr.name)}</option>`).join('');else ps.innerHTML='';
+  if(lt==='lookup'&&t&&se){
+    document.getElementById('lkDisplayProp').innerHTML=t.props.map(pr=>`<option value="${pr.id}"${sp?.link?.lookupDisplayPropId===pr.id?' selected':''}>${X(pr.name)}</option>`).join('');
+    const fks=se.props.filter(p=>p.link?.entityId===eid&&p.link.linkType==='ref'&&p.id!==lkCtx.pid);
+    document.getElementById('lkViaFK').innerHTML=fks.length?fks.map(p=>`<option value="${p.id}"${sp?.link?.viaFKPropId===p.id?' selected':''}>${X(p.name)}</option>`).join(''):`<option value="">— aucune FK vers ${X(t.name)} —</option>`;
+  }
+  if(lt==='rollup'&&t&&se){
+    const fks=t.props.filter(p=>p.link?.entityId===se.id&&p.link.linkType==='ref');
+    document.getElementById('lkRollupViaFK').innerHTML=fks.length?fks.map(p=>`<option value="${p.id}"${sp?.link?.rollupViaFKPropId===p.id?' selected':''}>${X(p.name)}</option>`).join(''):`<option value="">— aucune FK vers ${X(se.name)} —</option>`;
+    document.getElementById('lkRollupField').innerHTML=t.props.map(pr=>`<option value="${pr.id}"${sp?.link?.rollupFieldPropId===pr.id?' selected':''}>${X(pr.name)}</option>`).join('');
+  }
+}
+function saveLink(){
+  if(!lkCtx) return;
+  const e=entities.find(e=>e.id===lkCtx.eid),p=e?.props.find(p=>p.id===lkCtx.pid);if(!p) return;
+  snap();
+  const tid=document.getElementById('lkEntity').value,lt=document.getElementById('lkType').value;
+  if(lt==='ref'){p.link={entityId:tid,propId:document.getElementById('lkProp').value,linkType:'ref'};}
+  else if(lt==='lookup'){const v=document.getElementById('lkViaFK').value;if(!v){toast('⚠ Crée d\'abord une FK vers cette entité');return;}p.link={entityId:tid,propId:document.getElementById('lkProp').value,linkType:'lookup',lookupDisplayPropId:document.getElementById('lkDisplayProp').value,viaFKPropId:v};}
+  else{const v=document.getElementById('lkRollupViaFK').value;if(!v){toast('⚠ La table cible doit avoir une FK vers cette entité');return;}p.link={entityId:tid,propId:document.getElementById('lkProp').value,linkType:'rollup',rollupViaFKPropId:v,rollupFieldPropId:document.getElementById('lkRollupField').value,rollupOp:document.querySelector('.rop.selected')?.dataset.op||'COUNT'};}
+  closeM('linkModal');renderCard(lkCtx.eid);if(curDE===lkCtx.eid)renderDT(lkCtx.eid);snap();toast('Liaison créée');
+}
+function removeLink(){
+  if(!lkCtx) return;
+  const e=entities.find(e=>e.id===lkCtx.eid),p=e?.props.find(p=>p.id===lkCtx.pid);if(p) delete p.link;
+  closeM('linkModal');renderCard(lkCtx.eid);if(curDE===lkCtx.eid)renderDT(lkCtx.eid);snap();toast('Liaison supprimée');
+}
+
+// ═══════════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════════
+function openExport(){if(!entities.length){toast('Aucune entité');return;}document.getElementById('exportModal').classList.add('open');}
+async function doExport(){
+  const fmts=[...document.querySelectorAll('.format-opt.selected')].map(el=>el.dataset.fmt);
+  if(!fmts.length){toast('Sélectionne un format');return;}
+  const zip=new JSZip();
+  entities.forEach(e=>{
+    const res=e.rows.map((r,ri)=>{const o={};e.props.forEach((p,pi)=>{
+      if(p.link?.linkType==='lookup') o[p.name]=compLookup(e,ri,p);
+      else if(p.link?.linkType==='rollup') o[p.name]=compRollup(e,ri,p);
+      else if(p.link?.linkType==='ref'){const opts=getFKOpts(p.link.entityId),opt=opts[parseInt(r[pi])];o[p.name]=opt?opt.l:(r[pi]||'');}
+      else o[p.name]=r[pi]||'';});return o;});
+    const h=e.props.map(p=>p.name),fn=slugify(e.name),q=v=>`"${String(v).replace(/"/g,'""')}"`;
+    fmts.forEach(f=>{const folder=zip.folder(f);
+      if(f==='csv') folder.file(`${fn}.csv`,h.map(q).join(',')+'\n'+res.map(r=>h.map(k=>q(r[k]||'')).join(',')).join('\n'));
+      else if(f==='json'){const sc={entity:e.name,count:e.count,properties:e.props.map(p=>({name:p.name,type:p.type,...(p.link?{link:{type:p.link.linkType,entity:entities.find(en=>en.id===p.link.entityId)?.name}}:{})}))};folder.file(`${fn}.json`,JSON.stringify({schema:sc,data:res},null,2));}
+      else if(f==='tsv') folder.file(`${fn}.tsv`,h.join('\t')+'\n'+res.map(r=>h.map(k=>String(r[k]||'').replace(/\t/g,' ')).join('\t')).join('\n'));
+      else if(f==='md') folder.file(`${fn}.md`,'| '+h.join(' | ')+' |\n| '+h.map(()=>'---').join(' | ')+' |\n'+res.map(r=>'| '+h.map(k=>String(r[k]||'')).join(' | ')+' |').join('\n'));
+    });
+  });
+  zip.file('manifest.json',JSON.stringify({created:new Date().toISOString(),entities:entities.map(e=>({name:e.name,color:e.color,count:e.count,props:e.props.length})),formats:fmts},null,2));
+  const blob=await zip.generateAsync({type:'blob'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='entityforge-export.zip';a.click();
+  closeM('exportModal');toast('Package exporté !');
+}
+function slugify(s){return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');}
+
+// ═══════════════════════════════════════
+// TUTORIAL
+// ═══════════════════════════════════════
+function openTutorial(){tutIdx=0;tutGo(0);document.getElementById('tutorialModal').classList.add('open');}
+function tutGo(i){
+  tutIdx=i;const N=6;
+  document.querySelectorAll('.tut-tab').forEach((t,j)=>t.classList.toggle('active',j===i));
+  document.querySelectorAll('.tut-sec').forEach((s,j)=>s.classList.toggle('active',j===i));
+  document.getElementById('tutPg').textContent=`${i+1} / ${N}`;
+  document.getElementById('tutPrev').disabled=i===0;
+  document.getElementById('tutNext').textContent=i===N-1?'Fermer':'Suiv. →';
+}
+function tutStep(d){const N=6;const ni=tutIdx+d;if(ni<0) return;if(ni>=N){closeM('tutorialModal');return;}tutGo(ni);}
+
+// ═══════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════
+function switchSpace(s){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',(i===0&&s==='model')||(i===1&&s==='data')));
+  document.getElementById('space-model').style.display=s==='model'?'flex':'none';
+  document.getElementById('space-data').style.display=s==='data'?'flex':'none';
+  if(s==='data'){renderDS();if(!curDE&&entities.length)selDE(entities[0].id);else if(curDE)renderDT(curDE);}
+}
+function closeM(id){document.getElementById(id).classList.remove('open');}
+function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2400);}
+function X(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ═══════════════════════════════════════
+// DEMO
+// ═══════════════════════════════════════
+function demo(){
+  const p1a=uid(),p1b=uid(),p1c=uid(),p2a=uid(),p2b=uid(),p2c=uid(),p2d=uid(),p3a=uid(),p3b=uid(),p3c=uid(),p3d=uid();
+  const e1=uid(),e2=uid(),e3=uid();
+  entities=[
+    {id:e1,name:'Clients',color:'#c8f060',count:4,
+      props:[{id:p1a,name:'Nom',type:'text'},{id:p1b,name:'Email',type:'email'},
+             {id:p1c,name:'Nb commandes',type:'number',link:{entityId:e2,propId:p2a,linkType:'rollup',rollupViaFKPropId:p2b,rollupFieldPropId:p2a,rollupOp:'COUNT'}}],
+      rows:[['Alice','alice@mail.com'],['Bob','bob@mail.com'],['Clara','clara@mail.com'],['David','david@mail.com']]},
+    {id:e2,name:'Commandes',color:'#7dc8ff',count:6,
+      props:[{id:p2a,name:'Référence',type:'text'},{id:p2b,name:'Client',type:'text',link:{entityId:e1,propId:p1a,linkType:'ref'}},
+             {id:p2c,name:'Nom client',type:'text',link:{entityId:e1,propId:p1a,linkType:'lookup',lookupDisplayPropId:p1a,viaFKPropId:p2b}},
+             {id:p2d,name:'Montant',type:'number'}],
+      rows:[['CMD-001','0','','250'],['CMD-002','1','','180'],['CMD-003','0','','420'],['CMD-004','2','','90'],['CMD-005','1','','310'],['CMD-006','0','','150']]},
+    {id:e3,name:'Produits',color:'#f0a060',count:3,
+      props:[{id:p3a,name:'Nom',type:'text'},{id:p3b,name:'Prix',type:'number'},{id:p3c,name:'Catégorie',type:'select'},{id:p3d,name:'Stock',type:'number'}],
+      rows:[['Chaise design','149','mobilier','23'],['Lampe arc','89','luminaire','41'],['Tapis berbère','320','textile','8']]}
+  ];
+  cardPos[e1]={x:40,y:60};cardPos[e2]={x:360,y:60};cardPos[e3]={x:680,y:60};
+  renderAll(); snap();
+  toast('Démo chargée — Clients → Commandes (FK + Lookup + Rollup)');
+}
+init(); demo();
+</script>
+</body>
+</html>
